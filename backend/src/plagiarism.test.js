@@ -17,6 +17,16 @@ describe('similarity detector', () => {
     expect(compare(original,changed).similarity).toBeGreaterThan(0);
     expect(compare(original,changed).similarity).toBeLessThan(100);
   });
+  test('filters matching starter fingerprints before comparing students', () => {
+    const template='public class Main { public static void main ( String [ ] args ) { System . out . println ( "starter" ) ; } }';
+    const common='public static int calculate ( int value ) { int result = value * 7 + 4 ; return result ; }';
+    const sourceA=template+' '+common+' int extraA = 1 ; int extraB = 2 ; int extraC = 3 ;';
+    const sourceB=template+' '+common+' int uniqueX = 8 ; int uniqueY = 9 ; int uniqueZ = 10 ;';
+    const baselineComparison=compare(sourceA,sourceB,template);
+    expect(baselineComparison.similarity).toBeLessThan(compare(sourceA,sourceB).similarity);
+    expect(baselineComparison.commonTokenSequences.length).toBeGreaterThan(0);
+    expect(baselineComparison.commonTokenSequences).not.toContainEqual(expect.arrayContaining(tokenize(template).slice(0,5)));
+  });
   test('unrelated implementations score below similar implementations', () => {
     const a='public class Main { int sum(int a,int b){ return a+b; } }';
     const b='def render(items):\\n    for item in items:\\n        print(item.name.upper())';

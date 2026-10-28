@@ -10,11 +10,13 @@ Verity identifies suspicious source-code similarity in programming assignments. 
 ## Features
 
 - Professor and student registration, bcrypt password hashing, JWT authentication in an HTTP-only cookie.
-- Role-protected assignment management, submissions, versioning, and server-side deadlines.
+- Role-protected assignment management, submissions, versioning, and server-side deadlines, with optional professor-provided base-code templates.
+- Assignment submission tracking lists every registered student and shows submitted, submitted late, pending, or missed status; all registered students are considered assigned because the app has no course rosters.
 - Java and Python source uploads with MIME/extension validation, size limit, generated storage names, duplicate hashing, and private file access.
 - Latest submission per student compared with normalized tokens, k-grams, hashed winnowing fingerprints, Jaccard similarity, and directional coverage.
 - Persisted analysis history, review threshold, student names in reports, and CSV export.
-- Responsive React dashboard with professor editing and close controls.
+- Winnowing-based starter-template fingerprint filtering, common token-sequence details, and professor-only audited pair overrides.
+- Separate professor and student workspaces, individual profile pages, editable profile details, and private Multer-backed profile photos.
 
 ## Architecture
 
@@ -35,20 +37,13 @@ Use Node.js and start MongoDB locally. Copy the backend environment example and 
 
 Frontend configuration is in frontend/.env.example. Copy it to frontend/.env to override VITE_API_URL.
 
-Start the backend in one terminal:
+Start MongoDB, then run both application servers from the project root:
 
-    cd backend
-    npm install
     npm run dev
 
-Start the frontend in a second terminal:
+This starts the API on http://localhost:5001 and the UI on http://localhost:5174. Press Ctrl+C to stop both.
 
-    cd frontend
-    npm install
-    npm run dev
-
-From the project root, npm run dev, npm run build, and npm run preview are shortcuts to the frontend scripts. The UI runs at http://localhost:5173 and the API defaults to http://localhost:5000. Uploads are stored under backend/uploads by default; UPLOAD_DIR can override it.
-
+You can also run either service separately with npm --prefix backend run dev or npm --prefix frontend run dev. Uploads are stored under backend/uploads by default; UPLOAD_DIR can override it.
 ## Tests
 
     npm test
@@ -58,10 +53,14 @@ Jest and Supertest exercise routes against the local verity_test database, which
 ## API
 
 - POST /api/auth/register, POST /api/auth/login, POST /api/auth/logout, GET /api/auth/me
+- GET /api/profile, PUT /api/profile, POST /api/profile/avatar, GET /api/profile/avatar
+- GET /api/submissions (signed-in student’s own submissions)
 - GET /api/assignments, POST /api/assignments, GET /api/assignments/:id, PUT /api/assignments/:id, PATCH /api/assignments/:id/close
+- GET /api/assignments/:id/missing-students (owning professor only; lists non-submitters after the deadline)
+- GET /api/assignments/:id/students (owning professor only; lists all registered students and their assignment submission status)
 - POST /api/assignments/:id/submissions, GET /api/assignments/:id/submissions
 - GET /api/submissions/:id, GET /api/submissions/:id/versions
-- POST /api/assignments/:id/analyze, GET /api/assignments/:id/analyses, GET /api/assignments/:id/report.csv
+- POST /api/assignments/:id/analyze, GET /api/assignments/:id/analyses, GET /api/assignments/:id/report.csv, POST /api/reports/override
 
 ## Similarity method and limitations
 
