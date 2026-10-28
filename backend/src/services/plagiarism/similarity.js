@@ -30,20 +30,40 @@ export function tokenize(source) {
     i++;
   }
   return tokens;
-}export function fingerprints(source, k = 5, windowSize = 4) {
-  const tokens = tokenize(source), hashes = [];
-  for (let i = 0; i <= tokens.length - k; i++) hashes.push(crypto.createHash('sha1').update(tokens.slice(i, i + k).join(' ')).digest('hex'));
-  if (!hashes.length) return new Set();
-  const selected = new Set(), span = Math.min(windowSize, hashes.length);
-  for (let start = 0; start <= hashes.length - span; start++) {
+}function fingerprintDetails(source, k, windowSize) {
+  const tokens = tokenize(source), grams = [];
+  for (let i = 0; i <= tokens.length - k; i++) {
+    const sequence = tokens.slice(i, i + k);
+    grams.push({ hash: crypto.createHash('sha1').update(sequence.join(' ')).digest('hex'), sequence });
+  }
+  if (!grams.length) return new Map();
+  const selected = new Map(), span = Math.min(windowSize, grams.length);
+  for (let start = 0; start <= grams.length - span; start++) {
     let minimum = start;
-    for (let i = start + 1; i < start + span; i++) if (hashes[i] <= hashes[minimum]) minimum = i;
-    selected.add(hashes[minimum]);
+    for (let i = start + 1; i < start + span; i++) if (grams[i].hash <= grams[minimum].hash) minimum = i;
+    selected.set(grams[minimum].hash, grams[minimum].sequence);
   }
   return selected;
 }
-export function compare(sourceA, sourceB) {
-  const a = fingerprints(sourceA), b = fingerprints(sourceB);
-  const intersection = [...a].filter(hash => b.has(hash)).length, union = a.size + b.size - intersection;
-  return { jaccard: union ? +(intersection / union).toFixed(4) : (sourceA === sourceB ? 1 : 0), coverageA: a.size ? +(intersection / a.size).toFixed(4) : 0, coverageB: b.size ? +(intersection / b.size).toFixed(4) : 0, similarity: +(Math.max(a.size ? intersection / a.size : 0, b.size ? intersection / b.size : 0) * 100).toFixed(2) };
+export function fingerprints(source, k = 5, windowSize = 4) {
+  return new Set(fingerprintDetails(source, k, windowSize).keys());
+}
+export function compare(sourceA, sourceB, baseCodeTemplate = '') {
+  const templateFingerprints = fingerprints(baseCodeTemplate);
+  const a = fingerprintDetails(sourceA, 5, 4), b = fingerprintDetails(sourceB, 5, 4);
+  let filteredTemplateFingerprints = 0;
+  for (const hash of templateFingerprints) {
+    const filteredA = a.delete(hash), filteredB = b.delete(hash);
+    if (filteredA || filteredB) filteredTemplateFingerprints++;
+  }
+  const commonHashes = [...a.keys()].filter(hash => b.has(hash));
+  const intersection = commonHashes.length, union = a.size + b.size - intersection;
+  const coverageA = a.size ? intersection / a.size : 0, coverageB = b.size ? intersection / b.size : 0;
+  return {
+    jaccard: union ? +(intersection / union).toFixed(4) : sourceA === sourceB && filteredTemplateFingerprints === 0 ? 1 : 0,
+    coverageA: +coverageA.toFixed(4),
+    coverageB: +coverageB.toFixed(4),
+    similarity: union ? +(Math.max(coverageA, coverageB) * 100).toFixed(2) : sourceA === sourceB && filteredTemplateFingerprints === 0 ? 100 : 0,
+    commonTokenSequences: commonHashes.map(hash => a.get(hash)),
+  };
 }
